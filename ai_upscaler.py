@@ -1,51 +1,69 @@
-
+import cv2
 import argparse
-import torch
-from PIL import Image
-from realesrgan import RealESRGAN
+from cv2 import dnn_superres
 
-def upscale_image(input_path, output_path, scale=4):
-    # Determine the device to use (GPU if available)
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# TODO: 
+'''
+def determine_scaling(initial_image_width: int): -> int
+'''
+
+def denoise_image(image, h=10, hColor=10, templateWindowSize=7, searchWindowSize=21): 
+    # Apply the fastNlMeansDenoisingColored algorithm
+    return cv2.fastNlMeansDenoisingColored(image, None, h, hColor, templateWindowSize, searchWindowSize)
+
+def upscale_image(input_path, output_path, model_name='edsr', scale=4, model_path=None):
+        # Read the input image (supports PNG and other formats)
+    image = cv2.imread(input_path, cv2.IMREAD_UNCHANGED)
+    if image is None:
+        raise ValueError("Could not load image at {}".format(input_path))
     
-    # Initialize the Real-ESRGAN model for the given scale
-    model = RealESRGAN(device, scale=scale)
+    image = denoise_image(image)
+        
+    if scale <1:
+        if cv2.imwrite(output_path, image):
+            print(f"No upscaling performed. Output image saved to '{output_path}'.")
+        else:
+            print(f"Failed to save output image to '{output_path}'.")
+        return
     
-    # Load the pretrained weights (ensure you have the proper .pth file in your working directory)
-    # For example, for scale=4, you would use 'RealESRGAN_x4.pth'
-    weights_path = f'RealESRGAN_x{scale}.pth'
+    # Create the super resolution object
+    sr = dnn_superres.DnnSuperResImpl_create()
+
+    # Determine model file
+    if model_path is None:
+        # Assume the model file is named like 'EDSR_x4.pb' (case-sensitive)
+        model_file = f"{model_name.upper()}_x{scale}.pb"
+    else:
+        model_file = model_path
+
+    # Load the pre-trained model
     try:
-        model.load_weights(weights_path)
+        sr.readModel(model_file)
     except Exception as e:
-        print(f"Error loading weights from {weights_path}: {e}")
+        print(f"Error loading model file '{model_file}': {e}")
         return
 
-    # Open the image and ensure it's in RGB mode (the model expects RGB input)
-    try:
-        image = Image.open(input_path).convert('RGB')
-    except Exception as e:
-        print(f"Error loading image: {e}")
-        return
+    # Set the model and scale
+    sr.setModel(model_name, scale)
 
-    # Perform super-resolution
-    try:
-        sr_image = model.predict(image)
-    except Exception as e:
-        print(f"Error during upscaling: {e}")
-        return
+    # Perform upscaling
+    upscaled = sr.upsample(image)
 
     # Save the upscaled image
-    try:
-        sr_image.save(output_path)
-        print(f"Upscaled image saved to {output_path}")
-    except Exception as e:
-        print(f"Error saving image: {e}")
+    if cv2.imwrite(output_path, upscaled):
+        print(f"Upscaled image saved to '{output_path}'.")
+    else:
+        print(f"Failed to save upscaled image to '{output_path}'.")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Upscale a PNG image using Real-ESRGAN AI model.")
+    parser = argparse.ArgumentParser(description="Upscale a PNG image using OpenCV's DNN Super Resolution.")
     parser.add_argument("input", help="Path to the input PNG image.")
     parser.add_argument("output", help="Path where the upscaled image will be saved.")
+    parser.add_argument("--model", default="edsr", choices=['edsr', 'fsrcnn', 'espcn'],
+                        help="Super resolution model to use (default: edsr).")
     parser.add_argument("--scale", type=int, default=4, help="Upscaling factor (default: 4).")
+    parser.add_argument("--model_path", default=None,
+                        help="Optional path to the model file (e.g., EDSR_x4.pb).")
     args = parser.parse_args()
 
-    upscale_image(args.input, args.output, args.scale)
+    upscale_image(args.input, args.output, args.model, args.scale, args.model_path)
