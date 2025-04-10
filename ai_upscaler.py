@@ -26,8 +26,8 @@ def upscale_image(input_path, output_path, model_name='edsr', scale=4):
         raise ValueError("Could not load image at {}".format(input_path))
     
     image = denoise_image(image)
-    cv2.imwrite(output_path, image)
-    return
+    # cv2.imwrite(output_path, image)
+    # return
         
     if scale <1:
         if cv2.imwrite(output_path, image):
@@ -40,11 +40,11 @@ def upscale_image(input_path, output_path, model_name='edsr', scale=4):
     sr = dnn_superres.DnnSuperResImpl_create()
 
     # Determine model file
-    if model_path is None:
+    if MODEL_PATH is None:
         # Assume the model file is named like 'EDSR_x4.pb' (case-sensitive)
         model_file = f"{model_name.upper()}_x{scale}.pb"
     else:
-        model_file = model_path
+        model_file = MODEL_PATH
 
     # Load the pre-trained model
     try:
@@ -66,7 +66,7 @@ def upscale_image(input_path, output_path, model_name='edsr', scale=4):
         print(f"Failed to save upscaled image to '{output_path}'.")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Upscale a PNG image using OpenCV's DNN Super Resolution.")
+    parser = argparse.ArgumentParser(description="Denoise and AI Upscale a PNG using OpenCV.")
     parser.add_argument("input", help="Path to the input PNG image.")
     parser.add_argument("output", help="Path where the upscaled image will be saved.")
     parser.add_argument("--denoise", type=int, default=0, help="level of denoising to apply before upscaling (from 0 to 3)")
@@ -75,4 +75,5 @@ if __name__ == '__main__':
                         help="Optional path to the model file (e.g., EDSR_x4.pb).")
     args = parser.parse_args()
     DENOISE_STRENGTH = args.denoise
+    MODEL_PATH  = args.model_path
     upscale_image(args.input, args.output, args.scale)
