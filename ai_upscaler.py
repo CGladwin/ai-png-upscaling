@@ -1,23 +1,33 @@
 import cv2
 import argparse
 from cv2 import dnn_superres
+import numpy as np
 
 # TODO: 
 '''
 def determine_scaling(initial_image_width: int): -> int
 '''
 
-def denoise_image(image, h=10, hColor=10, templateWindowSize=7, searchWindowSize=21): 
-    # Apply the fastNlMeansDenoisingColored algorithm
-    return cv2.fastNlMeansDenoisingColored(image, None, h, hColor, templateWindowSize, searchWindowSize)
+def denoise_image(image):
+    if DENOISE_STRENGTH < 1:
+        return image
+    image = cv2.bilateralFilter(image,9,75,75)
+    if DENOISE_STRENGTH >= 2:
+        image = cv2.medianBlur(image,5)
+    if DENOISE_STRENGTH >= 3:
+        image = cv2.fastNlMeansDenoisingColored(image,None,4,4,7,21)
+    return image
 
-def upscale_image(input_path, output_path, model_name='edsr', scale=4, model_path=None):
+
+def upscale_image(input_path, output_path, model_name='edsr', scale=4):
         # Read the input image (supports PNG and other formats)
     image = cv2.imread(input_path, cv2.IMREAD_UNCHANGED)
     if image is None:
         raise ValueError("Could not load image at {}".format(input_path))
     
     image = denoise_image(image)
+    cv2.imwrite(output_path, image)
+    return
         
     if scale <1:
         if cv2.imwrite(output_path, image):
@@ -59,11 +69,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Upscale a PNG image using OpenCV's DNN Super Resolution.")
     parser.add_argument("input", help="Path to the input PNG image.")
     parser.add_argument("output", help="Path where the upscaled image will be saved.")
-    parser.add_argument("--model", default="edsr", choices=['edsr', 'fsrcnn', 'espcn'],
-                        help="Super resolution model to use (default: edsr).")
+    parser.add_argument("--denoise", type=int, default=0, help="level of denoising to apply before upscaling (from 0 to 3)")
     parser.add_argument("--scale", type=int, default=4, help="Upscaling factor (default: 4).")
     parser.add_argument("--model_path", default=None,
                         help="Optional path to the model file (e.g., EDSR_x4.pb).")
     args = parser.parse_args()
-
-    upscale_image(args.input, args.output, args.model, args.scale, args.model_path)
+    DENOISE_STRENGTH = args.denoise
+    upscale_image(args.input, args.output, args.scale)
