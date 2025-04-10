@@ -1,12 +1,6 @@
 import cv2
 import argparse
 from cv2 import dnn_superres
-import numpy as np
-
-# TODO: 
-'''
-def determine_scaling(initial_image_width: int): -> int
-'''
 
 def denoise_image(image):
     if DENOISE_STRENGTH < 1:
@@ -19,7 +13,7 @@ def denoise_image(image):
     return image
 
 
-def upscale_image(input_path, output_path, model_name='edsr', scale=4):
+def upscale_image(input_path, output_path):
         # Read the input image (supports PNG and other formats)
     image = cv2.imread(input_path, cv2.IMREAD_UNCHANGED)
     if image is None:
@@ -29,7 +23,7 @@ def upscale_image(input_path, output_path, model_name='edsr', scale=4):
     # cv2.imwrite(output_path, image)
     # return
         
-    if scale <1:
+    if SCALE <1:
         if cv2.imwrite(output_path, image):
             print(f"No upscaling performed. Output image saved to '{output_path}'.")
         else:
@@ -39,22 +33,15 @@ def upscale_image(input_path, output_path, model_name='edsr', scale=4):
     # Create the super resolution object
     sr = dnn_superres.DnnSuperResImpl_create()
 
-    # Determine model file
-    if MODEL_PATH is None:
-        # Assume the model file is named like 'EDSR_x4.pb' (case-sensitive)
-        model_file = f"{model_name.upper()}_x{scale}.pb"
-    else:
-        model_file = MODEL_PATH
-
     # Load the pre-trained model
     try:
-        sr.readModel(model_file)
+        sr.readModel(MODEL_PATH)
     except Exception as e:
-        print(f"Error loading model file '{model_file}': {e}")
+        print(f"Error loading model file '{MODEL_PATH}': {e}")
         return
 
     # Set the model and scale
-    sr.setModel(model_name, scale)
+    sr.setModel(MODEL_NAME, SCALE)
 
     # Perform upscaling
     upscaled = sr.upsample(image)
@@ -74,6 +61,10 @@ if __name__ == '__main__':
     parser.add_argument("--model_path", default=None,
                         help="Optional path to the model file (e.g., EDSR_x4.pb).")
     args = parser.parse_args()
+
     DENOISE_STRENGTH = args.denoise
-    MODEL_PATH  = args.model_path
-    upscale_image(args.input, args.output, args.scale)
+    MODEL_NAME= 'edsr'
+    SCALE = args.scale  #in case I want to add models to expand this feature
+    MODEL_PATH  = args.model_path if args.model_path is not None else f"{MODEL_NAME.upper()}_x{SCALE}.pb"
+
+    upscale_image(args.input, args.output)
