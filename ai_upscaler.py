@@ -1,6 +1,7 @@
 import cv2
 import argparse
 from cv2 import dnn_superres
+import os
 
 def denoise_image(image):
     if DENOISE_STRENGTH < 1:
@@ -34,10 +35,16 @@ def upscale_image(input_path, output_path):
     sr = dnn_superres.DnnSuperResImpl_create()
 
     # Load the pre-trained model
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    abs_model_path = (
+        MODEL_PATH if os.path.isabs(MODEL_PATH)
+        else os.path.join(script_dir, MODEL_PATH)
+        )
+    print(f"Loading model from {abs_model_path}")
     try:
-        sr.readModel(MODEL_PATH)
+        sr.readModel(abs_model_path)
     except Exception as e:
-        print(f"Error loading model file '{MODEL_PATH}': {e}")
+        print(f"Error loading model file '{abs_model_path}': {e}")
         return
 
     # Set the model and scale
